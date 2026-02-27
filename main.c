@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
 #include <stdbool.h>
 
 // Структура для описания книги
@@ -23,33 +22,40 @@ typedef struct {
 // Инициализация каталога
 void initCatalog(Catalog* catalog, int initialCapacity) {
     catalog->books = (Book*)malloc(initialCapacity * sizeof(Book));
+    // Cначала пустой, с выделенной памятью на 5 книг
     catalog->size = 0;
     catalog->capacity = initialCapacity;
 }
 
-// Добавление книги в каталог
+// Расширение массива на определённое количество элементов
+void expandCatalog(Catalog* catalog, int additionalCapacity) {
+    int newCapacity = catalog->capacity + additionalCapacity;
+    Book* newBooks = (Book*)malloc(newCapacity * sizeof(Book));
+
+    // Копируем существующие книги
+    for (int i = 0; i < catalog->size; ++i) {
+        newBooks[i] = catalog->books[i];
+    }
+
+    // Освобождаем старую память
+    free(catalog->books);
+    catalog->books = newBooks;
+    catalog->capacity = newCapacity;
+}
+
+// Добавление книги в конец каталога
 void addBook(Catalog* catalog) {
+    // Если массив заполнен, расширяем его на 5 элементов
+    // можно сделать на 1 элемент, но тогда слишком часто будет пересоздание памяти в expandCatalog
     if (catalog->size >= catalog->capacity) {
-        // Увеличиваем вместимость каталога в 2 раза
-        int newCapacity = catalog->capacity * 2;
-        Book* newBooks = (Book*)malloc(newCapacity * sizeof(Book));
-
-        // Копируем существующие книги
-        for (int i = 0; i < catalog->size; ++i) {
-            newBooks[i] = catalog->books[i];
-        }
-
-        // Освобождаем старую память
-        free(catalog->books);
-        catalog->books = newBooks;
-        catalog->capacity = newCapacity;
+        expandCatalog(catalog, 5);
     }
 
     // Ввод данных о новой книге
     Book newBook;
     printf("Введите название книги: ");
     fgets(newBook.title, sizeof(newBook.title), stdin);
-    newBook.title[strcspn(newBook.title, "\n")] = '\0'; // Удаляем символ новой строки
+    newBook.title[strcspn(newBook.title, "\n")] = '\0';
 
     printf("Введите автора книги: ");
     fgets(newBook.author, sizeof(newBook.author), stdin);
@@ -57,7 +63,7 @@ void addBook(Catalog* catalog) {
 
     printf("Введите год издания: ");
     scanf("%d", &newBook.year);
-    getchar(); // Очистка буфера
+    getchar();
 
     printf("Введите жанр книги: ");
     fgets(newBook.genre, sizeof(newBook.genre), stdin);
@@ -65,9 +71,9 @@ void addBook(Catalog* catalog) {
 
     printf("Введите количество страниц: ");
     scanf("%d", &newBook.pages);
-    getchar(); // Очистка буфера
+    getchar();
 
-    // Добавляем книгу в каталог
+    // Добавляем книгу в конец каталога
     catalog->books[catalog->size] = newBook;
     catalog->size++;
     printf("Книга добавлена в каталог!\n");
@@ -78,7 +84,7 @@ void removeBook(Catalog* catalog) {
     int index;
     printf("Введите индекс книги для удаления (от 0 до %d): ", catalog->size - 1);
     scanf("%d", &index);
-    getchar(); // Очистка буфера
+    getchar();
 
     if (index < 0 || index >= catalog->size) {
         printf("Некорректный индекс.\n");
@@ -91,7 +97,35 @@ void removeBook(Catalog* catalog) {
     }
 
     catalog->size--;
+
     printf("Книга удалена из каталога!\n");
+}
+
+// Удаление последней книги из каталога
+void removeLastBook(Catalog* catalog) {
+    // Проверка на пустоту
+    if (catalog->size == 0) {
+        printf("Каталог пуст. Нечего удалять.\n");
+        return;
+    }
+
+    catalog->size--;
+
+    // Уменьшаем размер массива, так как удален последний элемент
+    int newCapacity = catalog->size;
+    Book* newBooks = (Book*)malloc(newCapacity * sizeof(Book));
+
+    // Копируем существующие книги
+    for (int i = 0; i < catalog->size; ++i) {
+        newBooks[i] = catalog->books[i];
+    }
+
+    // Освобождаем старую память
+    free(catalog->books);
+    catalog->books = newBooks;
+    catalog->capacity = newCapacity;
+
+    printf("Последняя книга удалена из каталога!\n");
 }
 
 // Редактирование книги по индексу
@@ -99,7 +133,7 @@ void editBook(Catalog* catalog) {
     int index;
     printf("Введите индекс книги для редактирования (от 0 до %d): ", catalog->size - 1);
     scanf("%d", &index);
-    getchar(); // Очистка буфера
+    getchar();
 
     if (index < 0 || index >= catalog->size) {
         printf("Некорректный индекс.\n");
@@ -119,7 +153,7 @@ void editBook(Catalog* catalog) {
         printf("6. Завершить редактирование\n");
         printf("Выберите поле для редактирования: ");
         scanf("%d", &choice);
-        getchar(); // Очистка буфера
+        getchar();
 
         switch (choice) {
             case 1:
@@ -167,7 +201,7 @@ void searchBooks(const Catalog* catalog) {
     printf("5. По диапазону количества страниц\n");
     printf("Выберите критерий поиска: ");
     scanf("%d", &choice);
-    getchar(); // Очистка буфера
+    getchar();
 
     bool found = false;
     char searchString[100];
@@ -289,18 +323,16 @@ void displayCatalog(const Catalog* catalog) {
     }
 }
 
-// Освобождение памяти каталога
-void freeCatalog(Catalog* catalog) {
+// Очистка списка и освобождение памяти
+void clearCatalog(Catalog* catalog) {
     free(catalog->books);
+    catalog->books = NULL;
     catalog->size = 0;
     catalog->capacity = 0;
+    printf("Каталог очищен, память освобождена.\n");
 }
 
 int main() {
-    // Устанавливаем кодировку UTF-8 для консоли
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-
     Catalog catalog;
     initCatalog(&catalog, 5);
 
@@ -308,14 +340,16 @@ int main() {
     do {
         printf("\n--- Меню ---\n");
         printf("1. Добавить книгу\n");
-        printf("2. Удалить книгу\n");
-        printf("3. Редактировать книгу\n");
-        printf("4. Поиск книг\n");
-        printf("5. Показать каталог\n");
-        printf("6. Выйти\n");
+        printf("2. Удалить книгу по индексу\n");
+        printf("3. Удалить последнюю книгу\n");
+        printf("4. Редактировать книгу\n");
+        printf("5. Поиск книг\n");
+        printf("6. Показать каталог\n");
+        printf("7. Очистить каталог\n");
+        printf("8. Выйти\n");
         printf("Выберите действие: ");
         scanf("%d", &choice);
-        getchar(); // Очистка буфера
+        getchar();
 
         switch (choice) {
             case 1:
@@ -325,22 +359,32 @@ int main() {
                 removeBook(&catalog);
                 break;
             case 3:
-                editBook(&catalog);
+                removeLastBook(&catalog);
                 break;
             case 4:
-                searchBooks(&catalog);
+                editBook(&catalog);
                 break;
             case 5:
-                displayCatalog(&catalog);
+                searchBooks(&catalog);
                 break;
             case 6:
+                displayCatalog(&catalog);
+                break;
+            case 7:
+                clearCatalog(&catalog);
+                break;
+            case 8:
                 printf("Выход из программы.\n");
                 break;
             default:
                 printf("Некорректный выбор. Попробуйте снова.\n");
         }
-    } while (choice != 6);
+    } while (choice != 8);
 
-    freeCatalog(&catalog);
+    // Освобождение памяти перед завершением программы
+    if (catalog.books != NULL) {
+        free(catalog.books);
+    }
+
     return 0;
 }
